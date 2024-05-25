@@ -1,4 +1,4 @@
-# ntub-no-google-auth
+# ntub-auth-server
 
 這是一個使用 Django + restframework 框架的 Python 專案。
 
