@@ -15,11 +15,10 @@ router.register(r'auth', AuthViewSet, basename='auth')
 
 schema_view = get_schema_view(
     openapi.Info(
-        title="Snippets API",
+        title="NTUB-AUTH-SERVER API",
         default_version='v1',
-        description="Test description",
-        contact=openapi.Contact(email="contact@snippets.local"),
-        license=openapi.License(name="BSD License"),
+        description="北商大認證伺服器 API",
+        contact=openapi.Contact(email="11146001@ntub.edu.tw"),
     ),
     public=True,
     permission_classes=(permissions.AllowAny,),
