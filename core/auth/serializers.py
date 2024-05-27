@@ -23,7 +23,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         if data['password'] != data['password2']:
-            logging.INFO("{data} 密碼和確認密碼不匹配")
+            logging.info("{data} 密碼和確認密碼不匹配")
             raise serializers.ValidationError({"password": "密碼和確認密碼不匹配。"})
         return data
 
