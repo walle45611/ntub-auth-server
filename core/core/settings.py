@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 
 from pathlib import Path
+from datetime import datetime, timedelta
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -33,23 +34,42 @@ CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:5173',
+    'http://localhost:5173',
 ]
 
+SIMPLE_JWT = {
+    'SIGNING_KEY': SECRET_KEY,
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=20),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=180),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+}
 
 AUTHENTICATION_BACKENDS = [
     'auth.backends.EmailBackend',
     'django.contrib.auth.backends.ModelBackend',
 ]
 
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'NTUB-AUTH-SERVER API',
+    'DESCRIPTION': '北商大認證伺服器 API',
+    'VERSION': 'v1',
+    'CONTACT': {'email': '11146001@ntub.edu.tw'},
+    'SERVE_PERMISSIONS': ['rest_framework.permissions.AllowAny'],
+}
+
 # Application definition
 REST_FRAMEWORK = {
+    'EXCEPTION_HANDLER': 'rest_framework.views.exception_handler',
     'DEFAULT_RENDERER_CLASSES': (
         'rest_framework.renderers.JSONRenderer',
     ),
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-    )
+    ),
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -59,8 +79,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework_simplejwt',
-    'drf_yasg',
-    'sslserver'
+    'drf_spectacular',
+    'drf_spectacular_sidecar',
 ]
 
 MIDDLEWARE = [
@@ -148,7 +168,6 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -165,13 +184,14 @@ LOGGING = {
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
-            'formatter': 'verbose',
+            'formatter': 'simple',
+            'level': 'INFO',
         },
         'file': {
             'class': 'logging.handlers.RotatingFileHandler',
             'formatter': 'verbose',
             'filename': 'django.log',
-            'maxBytes': 4194304,  # 4 MB
+            'maxBytes': 4194304,
             'backupCount': 10,
             'level': 'DEBUG',
         },
