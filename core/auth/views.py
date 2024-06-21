@@ -1,66 +1,40 @@
-from rest_framework import viewsets, status
+from rest_framework import permissions, viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
-from drf_yasg.utils import swagger_auto_schema
-from drf_yasg import openapi
+from rest_framework.exceptions import ParseError, NotAuthenticated
+from drf_spectacular.utils import extend_schema
 import logging
-from django.views.decorators.csrf import csrf_exempt
-from .serializers import UserRegistrationSerializer, UserLoginSerializer
+
+from .serializers import UserRegistrationSerializer, UserLoginSerializer, VerifyGoogleTokenSerializer, RefreshTokenSerializer
 
 
 class AuthViewSet(viewsets.ViewSet):
-    @swagger_auto_schema(
-        methods=['post'],
-        request_body=UserRegistrationSerializer,
+    permission_classes = [permissions.AllowAny]
+
+    @extend_schema(
+        request=UserRegistrationSerializer,
         responses={
-            status.HTTP_200_OK: openapi.Response(
-                description='註冊成功',
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        'user': openapi.Schema(
-                            type=openapi.TYPE_OBJECT,
-                            properties={
-                                'username': openapi.Schema(type=openapi.TYPE_STRING, description='Username'),
-                                'email': openapi.Schema(type=openapi.TYPE_STRING, description='Email'),
-                                'first_name': openapi.Schema(type=openapi.TYPE_STRING, description='First Name'),
-                                'last_name': openapi.Schema(type=openapi.TYPE_STRING, description='Last Name'),
-                            }
-                        )
-                    }
-                )
-            ),
-            status.HTTP_400_BAD_REQUEST: '無效的輸入'
-        }
+            200: UserRegistrationSerializer
+        },
+        description="註冊使用者並回傳使用者資料。"
     )
     @action(detail=False, methods=['post'], url_path='register')
     def register(self, request):
         logging.info("開始註冊")
         serializer = UserRegistrationSerializer(data=request.data)
         if serializer.is_valid():
-            user = serializer.save()
-            return Response({"user": serializer.data}, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"user": serializer.data}, 200)
+        logging.error("註冊失敗 Error -> %s", str(serializer.errors))
+        raise ParseError("註冊失敗")
 
-    @swagger_auto_schema(
-        methods=['post'],
-        request_body=UserLoginSerializer,
+    @extend_schema(
+        request=UserLoginSerializer,
         responses={
-            status.HTTP_200_OK: openapi.Response(
-                description="登入成功",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        'access': openapi.Schema(type=openapi.TYPE_STRING, description="JWT access token"),
-                        'user_id': openapi.Schema(type=openapi.TYPE_INTEGER, description="User ID")
-                    }
-                )
-            ),
-            status.HTTP_401_UNAUTHORIZED: '無效的憑證',
-            status.HTTP_400_BAD_REQUEST: '無效的輸入'
-        }
+            200: UserLoginSerializer,
+        },
+        description="登入後回傳 Access Token 和 Refresh Token。"
     )
     @action(detail=False, methods=['post'], url_path='login')
     def login(self, request):
@@ -70,7 +44,7 @@ class AuthViewSet(viewsets.ViewSet):
             token_data = serializer.validated_data
 
             response = Response({
-                "access": token_data['access'],
+                "access_token": token_data['access'],
                 "user_id": token_data['user_id'],
             }, status=status.HTTP_200_OK)
 
@@ -81,49 +55,59 @@ class AuthViewSet(viewsets.ViewSet):
                 max_age=24 * 3600 * 180,
                 samesite="Lax",
             )
-
             return response
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        logging.warning("登入失敗 Error -> %s", str(serializer.errors))
+        raise ParseError("登入失敗")
 
-    @swagger_auto_schema(
-        methods=['post'],
+    @extend_schema(
         responses={
-            status.HTTP_200_OK: openapi.Response(
-                description="Token刷新成功",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        'access': openapi.Schema(type=openapi.TYPE_STRING, description="新的JWT存取權杖"),
-                    }
-                )
-            ),
-            status.HTTP_400_BAD_REQUEST: '無效的輸入',
-            status.HTTP_401_UNAUTHORIZED: '無效的權杖'
-        }
+            200: RefreshTokenSerializer,
+        },
+        description="更新 Access Token。"
     )
     @action(detail=False, methods=['post'], url_path='refresh')
     def refresh(self, request):
         logging.info("正在刷新權杖")
         refresh_token = request.COOKIES.get('refresh_token')
-        logging.info(" %s -> 正在刷新權杖", refresh_token)
-
-        if refresh_token is None:
-            return Response({"error": "未提供刷新權杖"}, status=status.HTTP_400_BAD_REQUEST)
-
+        if not refresh_token:
+            logging.warning("請重新登入")
+            raise ParseError('沒有提供 Refresh Token')
         try:
-            token = RefreshToken(refresh_token)
-            data = {'access': str(token.access_token)}
-
-            response = Response(data, status=status.HTTP_200_OK)
-            response.set_cookie(
-                'refresh_token',
-                str(token),
-                httponly=True,
-                max_age=24 * 3600 * 180,
-                samesite="Lax",
-            )
-
+            refresh = RefreshToken(refresh_token)
+            new_access_token = refresh.access_token
+            response = Response({'access_token': str(new_access_token)})
             return response
         except TokenError as e:
-            logging.error(f"權杖無效: {e}")
-            return Response({"error": "無效的權杖"}, status=status.HTTP_401_UNAUTHORIZED)
+            logging.error("非法登入 Error -> %s", str(e))
+            raise NotAuthenticated("非法登入")
+
+    @extend_schema(
+        request=VerifyGoogleTokenSerializer,
+        responses={
+            200: VerifyGoogleTokenSerializer,
+        },
+        description="驗證 Google 登入的 Token 並回傳新的 Access Token 和 Refresh Token。"
+    )
+    @action(methods=['post'], detail=False, url_path='verify-google-token')
+    def verify_google_token(self, request):
+        logging.info("開始 Google 登入")
+        serializer = VerifyGoogleTokenSerializer(data=request.data)
+        if serializer.is_valid():
+            validated_data = serializer.validated_data
+            response = Response({
+                'access_token': validated_data['access_token'],
+                'user_id': validated_data['user_id']
+            }, status=200)
+
+            response.set_cookie(
+                'refresh_token',
+                validated_data['refresh_token'],
+                httponly=True,
+                max_age=24 * 3600 * 180,
+                samesite='Lax'
+            )
+
+            logging.info("使用者 %s 透過 Google 登入成功", validated_data['user_id'])
+            return response
+        logging.error("Google 登入失敗 Error -> %s", str(serializer.errors))
+        raise ParseError("Google 登入失敗")
