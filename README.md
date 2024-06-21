@@ -4,9 +4,9 @@
 
 ## 環境設定
 
-首先，請確保你的系統已經安裝了 Python 和 Django。然後，你需要設定環境變數。你可以在 `env.yml` 文件中找到需要設定的環境變數。
+首先，請確保你的系統已經安裝了 Python 和 Pip。然後，你需要設定環境變數。你可以在 `requirements.txt` 文件中找到需要設定的環境變數。
 ```
-conda env create -f env.yml
+pip install -r requirements.txt 
 ```
 
 ## 啟動伺服器
@@ -14,4 +14,5 @@ conda env create -f env.yml
 要啟動伺服器，請在終端機中輸入以下指令：
 
 ```sh
-python src/manage.py runserver
+python core/manage.py runserver
+```
