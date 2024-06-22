@@ -37,6 +37,7 @@ CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
 ]
 
+# JWT 設定
 SIMPLE_JWT = {
     'SIGNING_KEY': 'django-insecure-ntub-auth-server',
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=20),
@@ -52,22 +53,27 @@ AUTHENTICATION_BACKENDS = [
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'NTUB-AUTH-SERVER API',
+    'VERSION': '1.0.0',
     'DESCRIPTION': '北商大認證伺服器 API',
-    'VERSION': 'v1',
     'CONTACT': {'email': '11146001@ntub.edu.tw'},
-    'SERVE_PERMISSIONS': ['rest_framework.permissions.AllowAny'],
+    # api versioning
+    'DEFAULT_VERSIONING_CLASS': 'rest_framework.versioning.URLPathVersioning',
+    'ALLOWED_VERSIONS': ['1.0.0', '2.0.0'],
+    'DEFAULT_VERSION': '1.0.0',
+    'SCHEMA_PATH_PREFIX': r'/api/v[1-9]'
 }
 
 # Application definition
 REST_FRAMEWORK = {
     'EXCEPTION_HANDLER': 'rest_framework.views.exception_handler',
+    'DEFAULT_VERSIONING_CLASS': 'rest_framework.versioning.NamespaceVersioning',
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_RENDERER_CLASSES': (
         'rest_framework.renderers.JSONRenderer',
     ),
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
-    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
 INSTALLED_APPS = [
