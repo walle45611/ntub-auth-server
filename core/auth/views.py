@@ -14,27 +14,31 @@ class AuthViewSet(viewsets.ViewSet):
     permission_classes = [permissions.AllowAny]
 
     @extend_schema(
+        summary="註冊使用者並回傳使用者資料。",
         request=UserRegistrationSerializer,
         responses={
             200: UserRegistrationSerializer
         },
-        description="註冊使用者並回傳使用者資料。"
     )
     @action(detail=False, methods=['post'], url_path='register')
     def register(self, request):
         logging.info("開始註冊")
         serializer = UserRegistrationSerializer(data=request.data)
         if serializer.is_valid():
+            logging.info("註冊成功")
             return Response({"user": serializer.data}, 200)
-        logging.error("註冊失敗 Error -> %s", str(serializer.errors))
-        raise ParseError("註冊失敗")
+        else:
+            password_errors = serializer.errors.get('password', [])
+            error_messages = [str(error) for error in password_errors]
+            logging.error("註冊失敗 Error -> %s", '; '.join(error_messages))
+            raise ParseError(error_messages)
 
     @extend_schema(
+        summary="登入後回傳 Access Token 和 Refresh Token。",
         request=UserLoginSerializer,
         responses={
             200: UserLoginSerializer,
         },
-        description="登入後回傳 Access Token 和 Refresh Token。"
     )
     @action(detail=False, methods=['post'], url_path='login')
     def login(self, request):
@@ -60,10 +64,11 @@ class AuthViewSet(viewsets.ViewSet):
         raise ParseError("登入失敗")
 
     @extend_schema(
+        summary="更新 Access Token。",
+        description="使用 Refresh Token 更新 Access Token，並起儲存在 cookie 中，並啟用 httpOnly。",
         responses={
             200: RefreshTokenSerializer,
         },
-        description="更新 Access Token。"
     )
     @action(detail=False, methods=['post'], url_path='refresh')
     def refresh(self, request):
@@ -82,11 +87,11 @@ class AuthViewSet(viewsets.ViewSet):
             raise NotAuthenticated("非法登入")
 
     @extend_schema(
+        summary="驗證 Google 登入的 Token 並回傳新的 Access Token 和 Refresh Token。",
         request=VerifyGoogleTokenSerializer,
         responses={
             200: VerifyGoogleTokenSerializer,
         },
-        description="驗證 Google 登入的 Token 並回傳新的 Access Token 和 Refresh Token。"
     )
     @action(methods=['post'], detail=False, url_path='verify-google-token')
     def verify_google_token(self, request):
