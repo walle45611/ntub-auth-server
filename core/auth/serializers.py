@@ -13,9 +13,11 @@ User = get_user_model()
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
+    password2 = serializers.CharField(write_only=True)
+
     class Meta:
         model = User
-        fields = ('username', 'password',
+        fields = ('username', 'password', 'password2',
                   'email', 'first_name', 'last_name')
         extra_kwargs = {
             'password': {'write_only': True, 'required': True, 'validators': [validate_password]},
@@ -41,17 +43,6 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         user = User.objects.create_user(**validated_data)
         return user
 
-    def create(self, validated_data):
-        user = User.objects.create(
-            username=validated_data['username'],
-            email=validated_data['email'],
-            first_name=validated_data['first_name'],
-            last_name=validated_data['last_name']
-        )
-        user.set_password(validated_data['password'])
-        user.save()
-        return user
-
 
 class UserLoginSerializer(serializers.Serializer):
     email = serializers.EmailField(write_only=True)
@@ -63,12 +54,10 @@ class UserLoginSerializer(serializers.Serializer):
     def validate(self, data):
         user = authenticate(email=data['email'], password=data['password'])
         if user is None:
-            logging.info("email : %s, password: %s -> 驗證帳號失敗",
-                         data['email'], data['password'])
+            logging.info("email : %s -> 驗證帳號失敗", data['email'])
             raise serializers.ValidationError("驗證帳號失敗")
         refresh = RefreshToken.for_user(user)
-        logging.info("email : %s, password: %s -> 驗證帳號成功",
-                     data['email'], data['password'])
+        logging.info("email : %s -> 驗證帳號成功", data['email'])
         return {
             'refresh': str(refresh),
             'access': str(refresh.access_token),
