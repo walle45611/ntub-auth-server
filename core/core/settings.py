@@ -11,8 +11,8 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 
 from pathlib import Path
-from datetime import timedelta
-
+import environ
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -21,30 +21,29 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-i-=xz=)(xuiw1jl$l%ku)3&87in89j96jsfv9k3hc3^-5+32k2'
+# ENV 切換
+env = environ.Env()
+ENVIRONMENT = os.getenv('DJANGO_ENV', 'development')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+if ENVIRONMENT == 'production':
+    environ.Env.read_env('.env.production')
+else:
+    environ.Env.read_env('.env.development')
+    
+DEBUG = env.bool('DEBUG', default=False)
+
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = env('SECRET_KEY')
+
+# JWT_Secret Key
+SIGNING_KEY = env('SIGNING_KEY')
 
 ALLOWED_HOSTS = []
 
-# CORS 很重要，會引響驗證問題
+# CORS 很重要，會影響驗證問題
 CORS_ALLOW_CREDENTIALS = True
 
-CORS_ALLOWED_ORIGINS = [
-    'http://127.0.0.1:5173',
-    'http://localhost:5173',
-]
-
-# JWT 設定
-SIMPLE_JWT = {
-    'SIGNING_KEY': 'django-insecure-ntub-auth-server',
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=20),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=180),
-    'ROTATE_REFRESH_TOKENS': True,
-    'BLACKLIST_AFTER_ROTATION': True,
-}
+CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS')
 
 AUTHENTICATION_BACKENDS = [
     'auth.backends.EmailBackend',
